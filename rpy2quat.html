@@ -27,6 +27,19 @@
             height: 300px;
             background-color: #bb000059;
         }
+        .input-group {
+            margin-bottom: 10px;
+        }
+        .input-group label {
+            display: inline-block;
+            width: 100px;
+        }
+        .input-group input[type="number"] {
+            width: 60px;
+        }
+        .input-group input[type="range"] {
+            width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -36,16 +49,26 @@
         <!-- 左侧表单部分 -->
         <div class="left">
             <form id="rpyForm">
-                <label for="roll">Roll (角度): </label>
-                <input type="number" id="roll" name="roll" value="0" required><br><br>
+                <div class="input-group">
+                    <label for="roll">Roll (角度): </label>
+                    <input type="number" id="roll" name="roll" value="0" min="-180" max="180" step="1" required>
+                    <input type="range" id="rollSlider" name="rollSlider" min="-180" max="180" step="1" value="0">
+                </div>
                 
-                <label for="pitch">Pitch (角度): </label>
-                <input type="number" id="pitch" name="pitch" value="0" required><br><br>
+                <div class="input-group">
+                    <label for="pitch">Pitch (角度): </label>
+                    <input type="number" id="pitch" name="pitch" value="0" min="-180" max="180" step="1" required>
+                    <input type="range" id="pitchSlider" name="pitchSlider" min="-180" max="180" step="1" value="0">
+                </div>
                 
-                <label for="yaw">Yaw (角度): </label>
-                <input type="number" id="yaw" name="yaw" value="0" required><br><br>
+                <div class="input-group">
+                    <label for="yaw">Yaw (角度): </label>
+                    <input type="number" id="yaw" name="yaw" value="0" min="-180" max="180" step="1" required>
+                    <input type="range" id="yawSlider" name="yawSlider" min="-180" max="180" step="1" value="0">
+                </div>
                 
-                <button type="submit">计算</button>
+                <button type="button" id="resetBtn">重置</button>
+                <button type="button" id="randomBtn">随机</button>
             </form>
 
             <h3>四元数:</h3>
@@ -64,9 +87,7 @@
 
     <script>
         // 提交表单计算四元数和旋转矩阵
-        document.getElementById('rpyForm').addEventListener('submit', function(event) {
-            event.preventDefault();
-            
+        function updateView() {
             const roll = parseFloat(document.getElementById('roll').value);
             const pitch = parseFloat(document.getElementById('pitch').value);
             const yaw = parseFloat(document.getElementById('yaw').value);
@@ -102,27 +123,34 @@
             
             // 更新3D视图
             update3DView(result.quaternion);
-        });
+        }
 
-        
-        // 设置 Three.js 场景
+        // 获取输入框和滑块元素
+        const rollInput = document.getElementById('roll');
+        const rollSlider = document.getElementById('rollSlider');
+        const pitchInput = document.getElementById('pitch');
+        const pitchSlider = document.getElementById('pitchSlider');
+        const yawInput = document.getElementById('yaw');
+        const yawSlider = document.getElementById('yawSlider');
+
+        // 初始化 Three.js 场景
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+        camera.up.set(0, 0, 1);
         const renderer = new THREE.WebGLRenderer();
         renderer.setSize(800, 600);
-        renderer.setClearColor(0xffffff); // 黑色背景
-
+        renderer.setClearColor(0xffffff);
         document.getElementById('3dView').appendChild(renderer.domElement);
 
-        const axisHelper = new THREE.AxesHelper(5);
+        const axisHelper = new THREE.AxesHelper(3);
         scene.add(axisHelper);
-        // 添加光源
+
         const light = new THREE.AmbientLight(0xffffff, 0.5);
         scene.add(light);
-        // camera.position.z = 5;
-        camera.up.set(0,0,1);
-        camera.position.set(4, 5, 6);
+
+        camera.position.set(5, 5, 5);
         camera.lookAt(0, 0, 0);
+        
 
         function update3DView(quaternion) {
             const rotation = new THREE.Quaternion(quaternion.x, quaternion.y, quaternion.z, quaternion.w);
@@ -130,8 +158,63 @@
             renderer.render(scene, camera);
         }
 
+        // 滑块和输入框同步
+        rollSlider.addEventListener('input', function() {
+            rollInput.value = rollSlider.value;
+            updateView();
+        });
+
+        pitchSlider.addEventListener('input', function() {
+            pitchInput.value = pitchSlider.value;
+            updateView();
+        });
+
+        yawSlider.addEventListener('input', function() {
+            yawInput.value = yawSlider.value;
+            updateView();
+        });
+
+        rollInput.addEventListener('input', function() {
+            rollSlider.value = rollInput.value;
+            updateView();
+        });
+
+        pitchInput.addEventListener('input', function() {
+            pitchSlider.value = pitchInput.value;
+            updateView();
+        });
+
+        yawInput.addEventListener('input', function() {
+            yawSlider.value = yawInput.value;
+            updateView();
+        });
+
+        // 重置按钮
+        document.getElementById('resetBtn').addEventListener('click', function() {
+            rollInput.value = pitchInput.value = yawInput.value = '0';
+            rollSlider.value = pitchSlider.value = yawSlider.value = '0';
+            updateView();
+        });
+
+        // 随机按钮
+        document.getElementById('randomBtn').addEventListener('click', function() {
+            const roll = Math.floor(Math.random() * 361) - 180;
+            const pitch = Math.floor(Math.random() * 361) - 180;
+            const yaw = Math.floor(Math.random() * 361) - 180;
+
+            rollInput.value = roll;
+            pitchInput.value = pitch;
+            yawInput.value = yaw;
+
+            rollSlider.value = roll;
+            pitchSlider.value = pitch;
+            yawSlider.value = yaw;
+
+            updateView();
+        });
+
         // 初始化视图
-        update3DView({ x: 0, y: 0, z: 0, w: 1 });
+        updateView();
     </script>
 </body>
 </html>
