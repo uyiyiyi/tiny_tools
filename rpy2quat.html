@@ -1,83 +1,137 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Roll, Pitch, Yaw 转换工具</title>
+    <title>Roll-Pitch-Yaw 转 四元数与旋转矩阵工具</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="rpy2quat.js"></script>
     <style>
         body {
-            margin: 0;
             font-family: Arial, sans-serif;
         }
-        #container {
+        .container {
             display: flex;
-            height: 100vh;
+            justify-content: space-between;
         }
-        #input-panel {
-            width: 300px;
-            padding: 20px;
-            background-color: #f0f0f0;
-            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
+        .left {
+            width: 45%;
         }
-        input {
+        .right {
+            width: 45%;
+            border-left: 1px solid #ccc;
+            padding-left: 20px;
+        }
+        #3dView {
             width: 100%;
-            margin: 5px 0 15px;
-            padding: 8px;
-            box-sizing: border-box;
-        }
-        button {
-            width: 100%;
-            padding: 10px;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        #output {
-            margin-top: 15px;
-            font-size: 14px;
-            color: #333;
-        }
-        #canvas {
-            flex: 1;
-            background-color: #e0e0e0;
+            height: 300px;
+            background-color: #bb000059;
         }
     </style>
 </head>
 <body>
-<div id="container">
-    <!-- Input Panel -->
-    <div id="input-panel">
-        <h2>输入 Roll, Pitch, Yaw</h2>
-        <label>Roll (X轴, 度):</label>
-        <input type="number" id="roll" placeholder="例如: 30">
+    <h1>Roll-Pitch-Yaw 转 四元数与旋转矩阵工具</h1>
+    
+    <div class="container">
+        <!-- 左侧表单部分 -->
+        <div class="left">
+            <form id="rpyForm">
+                <label for="roll">Roll (角度): </label>
+                <input type="number" id="roll" name="roll" value="0" required><br><br>
+                
+                <label for="pitch">Pitch (角度): </label>
+                <input type="number" id="pitch" name="pitch" value="0" required><br><br>
+                
+                <label for="yaw">Yaw (角度): </label>
+                <input type="number" id="yaw" name="yaw" value="0" required><br><br>
+                
+                <button type="submit">计算</button>
+            </form>
 
-        <label>Pitch (Y轴, 度):</label>
-        <input type="number" id="pitch" placeholder="例如: 45">
-
-        <label>Yaw (Z轴, 度):</label>
-        <input type="number" id="yaw" placeholder="例如: 60">
-
-        <button onclick="updateRotation()">计算并显示</button>
-
-        <div id="output">
             <h3>四元数:</h3>
-            <p id="quaternion">-</p>
+            <p id="quaternion"></p>
+
             <h3>旋转矩阵:</h3>
-            <p id="matrix">-</p>
+            <div id="rotationMatrix"></div>
+        </div>
+
+        <!-- 右侧3D视图部分 -->
+        <div class="right">
+            <h3>3D 姿态视图</h3>
+            <div id="3dView"></div>
         </div>
     </div>
 
-    <!-- 3D Canvas -->
-    <div id="canvas"></div>
-</div>
+    <script>
+        // 提交表单计算四元数和旋转矩阵
+        document.getElementById('rpyForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            const roll = parseFloat(document.getElementById('roll').value);
+            const pitch = parseFloat(document.getElementById('pitch').value);
+            const yaw = parseFloat(document.getElementById('yaw').value);
+            
+            // 计算四元数和旋转矩阵
+            const result = rpyToQuatAndRotationMatrix(roll, pitch, yaw);
+            
+            // 显示四元数
+            document.getElementById('quaternion').textContent = 
+                `x: ${result.quaternion.x.toFixed(3)}, y: ${result.quaternion.y.toFixed(3)}, z: ${result.quaternion.z.toFixed(3)}, w: ${result.quaternion.w.toFixed(3)}`;
+            
+            // 显示旋转矩阵为表格形式
+            const matrixTable = `
+                <table border="1" cellspacing="0" cellpadding="5">
+                    <tr>
+                        <td>${result.rotationMatrix[0][0].toFixed(3)}</td>
+                        <td>${result.rotationMatrix[0][1].toFixed(3)}</td>
+                        <td>${result.rotationMatrix[0][2].toFixed(3)}</td>
+                    </tr>
+                    <tr>
+                        <td>${result.rotationMatrix[1][0].toFixed(3)}</td>
+                        <td>${result.rotationMatrix[1][1].toFixed(3)}</td>
+                        <td>${result.rotationMatrix[1][2].toFixed(3)}</td>
+                    </tr>
+                    <tr>
+                        <td>${result.rotationMatrix[2][0].toFixed(3)}</td>
+                        <td>${result.rotationMatrix[2][1].toFixed(3)}</td>
+                        <td>${result.rotationMatrix[2][2].toFixed(3)}</td>
+                    </tr>
+                </table>
+            `;
+            document.getElementById('rotationMatrix').innerHTML = matrixTable;
+            
+            // 更新3D视图
+            update3DView(result.quaternion);
+        });
 
-<!-- Three.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="rpy2quat.js"></script>
+        
+        // 设置 Three.js 场景
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(800, 600);
+        renderer.setClearColor(0xffffff); // 黑色背景
+
+        document.getElementById('3dView').appendChild(renderer.domElement);
+
+        const axisHelper = new THREE.AxesHelper(5);
+        scene.add(axisHelper);
+        // 添加光源
+        const light = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(light);
+        // camera.position.z = 5;
+        camera.up.set(0,0,1);
+        camera.position.set(4, 5, 6);
+        camera.lookAt(0, 0, 0);
+
+        function update3DView(quaternion) {
+            const rotation = new THREE.Quaternion(quaternion.x, quaternion.y, quaternion.z, quaternion.w);
+            axisHelper.setRotationFromQuaternion(rotation);
+            renderer.render(scene, camera);
+        }
+
+        // 初始化视图
+        update3DView({ x: 0, y: 0, z: 0, w: 1 });
+    </script>
 </body>
 </html>
-
