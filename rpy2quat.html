@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roll, Pitch, Yaw to Quaternion and Rotation Matrix</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        #container {
+            display: flex;
+            height: 100vh;
+        }
+        #input-panel {
+            width: 300px;
+            padding: 20px;
+            background-color: #f0f0f0;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
+        }
+        input {
+            width: 100%;
+            margin: 5px 0 15px;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #output {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #333;
+        }
+        #canvas {
+            flex: 1;
+            background-color: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+<div id="container">
+    <!-- Input Panel -->
+    <div id="input-panel">
+        <h2>输入 Roll, Pitch, Yaw</h2>
+        <label>Roll (X轴, 度):</label>
+        <input type="number" id="roll" placeholder="例如: 30">
+
+        <label>Pitch (Y轴, 度):</label>
+        <input type="number" id="pitch" placeholder="例如: 45">
+
+        <label>Yaw (Z轴, 度):</label>
+        <input type="number" id="yaw" placeholder="例如: 60">
+
+        <button onclick="updateRotation()">计算并显示</button>
+
+        <div id="output">
+            <h3>四元数:</h3>
+            <p id="quaternion">-</p>
+            <h3>旋转矩阵:</h3>
+            <p id="matrix">-</p>
+        </div>
+    </div>
+
+    <!-- 3D Canvas -->
+    <div id="canvas"></div>
+</div>
+
+<!-- Three.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+    let scene, camera, renderer, axesHelper, rotationGroup;
+
+    // 初始化 Three.js 场景
+    function initScene() {
+        const container = document.getElementById("canvas");
+
+        scene = new THREE.Scene();
+
+        camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+        camera.position.set(3, 3, 3);
+        camera.lookAt(0, 0, 0);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        container.appendChild(renderer.domElement);
+
+        // 添加坐标系
+        axesHelper = new THREE.AxesHelper(2);
+        scene.add(axesHelper);
+
+        // 旋转的组
+        rotationGroup = new THREE.Group();
+        scene.add(rotationGroup);
+
+        // 添加网格地面
+        const gridHelper = new THREE.GridHelper(5, 10);
+        scene.add(gridHelper);
+
+        // 添加鼠标控制
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+        animate();
+    }
+
+    // 动画循环
+    function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+    }
+
+    // 计算四元数和旋转矩阵
+    function updateRotation() {
+        const roll = parseFloat(document.getElementById("roll").value) || 0;
+        const pitch = parseFloat(document.getElementById("pitch").value) || 0;
+        const yaw = parseFloat(document.getElementById("yaw").value) || 0;
+
+        // 将角度转换为弧度
+        const rollRad = THREE.MathUtils.degToRad(roll);
+        const pitchRad = THREE.MathUtils.degToRad(pitch);
+        const yawRad = THREE.MathUtils.degToRad(yaw);
+
+        // 计算欧拉角和四元数
+        const euler = new THREE.Euler(rollRad, pitchRad, yawRad, "XYZ");
+        const quaternion = new THREE.Quaternion().setFromEuler(euler);
+        const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(euler);
+
+        // 更新结果显示
+        document.getElementById("quaternion").innerText = quaternion.toArray().map(v => v.toFixed(4)).join(", ");
+        document.getElementById("matrix").innerText = JSON.stringify(rotationMatrix.elements.map(v => v.toFixed(4)));
+
+        // 更新3D坐标系
+        rotationGroup.rotation.set(rollRad, pitchRad, yawRad);
+    }
+
+    // 初始化场景
+    initScene();
+</script>
+</body>
+</html>
