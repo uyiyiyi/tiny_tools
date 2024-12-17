@@ -12,7 +12,17 @@ function initScene() {
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
+    container.innerHTML = ""; // 清空 canvas 容器（防止重复添加）
     container.appendChild(renderer.domElement);
+
+    // 添加环境光
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+
+    // 添加方向光
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(5, 5, 5);
+    scene.add(directionalLight);
 
     // 添加坐标系
     axesHelper = new THREE.AxesHelper(2);
